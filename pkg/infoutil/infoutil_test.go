@@ -58,6 +58,33 @@ func TestParseBuildctlVersion(t *testing.T) {
 	}
 }
 
+func TestParseRootlesskitVersion(t *testing.T) {
+	testCases := map[string]*dockercompat.ComponentVersion{
+		"rootlesskit version 2.0.0": {
+			Name:    "rootlesskit",
+			Version: "2.0.0",
+		},
+		"rootlesskit version 2.0.0 abc1234": {
+			Name:    "rootlesskit",
+			Version: "2.0.0",
+			Details: map[string]string{
+				"GitCommit": "abc1234",
+			},
+		},
+		"foo bar baz": nil,
+	}
+
+	for s, expected := range testCases {
+		got, err := parseRootlesskitVersion([]byte(s))
+		if expected != nil {
+			assert.NilError(t, err)
+			assert.DeepEqual(t, expected, got)
+		} else {
+			assert.Assert(t, err != nil)
+		}
+	}
+}
+
 func TestParseRuncVersion(t *testing.T) {
 	testCases := map[string]*dockercompat.ComponentVersion{
 		`runc version 1.1.2
