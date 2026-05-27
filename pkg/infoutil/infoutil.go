@@ -35,6 +35,7 @@ import (
 	"github.com/containerd/nerdctl/v2/pkg/buildkitutil"
 	"github.com/containerd/nerdctl/v2/pkg/inspecttypes/dockercompat"
 	"github.com/containerd/nerdctl/v2/pkg/inspecttypes/native"
+	"github.com/containerd/nerdctl/v2/pkg/rootlessutil"
 	"github.com/containerd/nerdctl/v2/pkg/version"
 )
 
@@ -122,6 +123,7 @@ func ClientVersion() dockercompat.ClientVersion {
 		Arch:      runtime.GOARCH,
 		Components: []dockercompat.ComponentVersion{
 			buildctlVersion(),
+			rootlesskitVersion(),
 		},
 	}
 }
@@ -186,6 +188,38 @@ func parseBuildctlVersion(buildctlVersionStdout []byte) (*dockercompat.Component
 	}
 	if v.Name != "buildctl" {
 		return nil, fmt.Errorf("unable to determine buildctl version, got %q", string(buildctlVersionStdout))
+	}
+	return v, nil
+}
+
+func rootlesskitVersion() dockercompat.ComponentVersion {
+	if !rootlessutil.IsRootless() {
+		return dockercompat.ComponentVersion{}
+	}
+	stdout, err := exec.Command("rootlesskit", "--version").Output()
+	if err != nil {
+		log.L.WithError(err).Warnf("unable to determine rootlesskit version")
+		return dockercompat.ComponentVersion{Name: "rootlesskit"}
+	}
+	v, err := parseRootlesskitVersion(stdout)
+	if err != nil {
+		log.L.Warn(err)
+		return dockercompat.ComponentVersion{Name: "rootlesskit"}
+	}
+	return *v
+}
+
+func parseRootlesskitVersion(versionStdout []byte) (*dockercompat.ComponentVersion, error) {
+	fields := strings.Fields(strings.TrimSpace(string(versionStdout)))
+	if len(fields) < 3 || fields[0] != "rootlesskit" {
+		return nil, fmt.Errorf("unable to determine rootlesskit version, got %q", string(versionStdout))
+	}
+	v := &dockercompat.ComponentVersion{
+		Name:    fields[0],
+		Version: fields[2],
+	}
+	if len(fields) >= 4 {
+		v.Details = map[string]string{"GitCommit": fields[3]}
 	}
 	return v, nil
 }
