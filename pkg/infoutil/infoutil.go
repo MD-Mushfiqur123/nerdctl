@@ -214,15 +214,24 @@ func rootlesskitVersion() *dockercompat.ComponentVersion {
 
 func parseRootlesskitVersion(versionStdout []byte) (*dockercompat.ComponentVersion, error) {
 	fields := strings.Fields(strings.TrimSpace(string(versionStdout)))
-	if len(fields) < 3 || fields[0] != "rootlesskit" {
+	if len(fields) < 2 || fields[0] != "rootlesskit" {
 		return nil, fmt.Errorf("unable to determine rootlesskit version, got %q", string(versionStdout))
 	}
 	v := &dockercompat.ComponentVersion{
-		Name:    fields[0],
-		Version: fields[2],
+		Name: fields[0],
 	}
-	if len(fields) >= 4 {
-		v.Details = map[string]string{"GitCommit": fields[3]}
+	// urfave/cli v3: "rootlesskit 3.0.0" (2 fields)
+	// urfave/cli v1/v2: "rootlesskit version 2.0.0" (3 fields)
+	//                    "rootlesskit version 2.0.0 abc1234" (4 fields)
+	if fields[1] == "version" {
+		if len(fields) >= 3 {
+			v.Version = fields[2]
+		}
+		if len(fields) >= 4 {
+			v.Details = map[string]string{"GitCommit": fields[3]}
+		}
+	} else {
+		v.Version = fields[1]
 	}
 	return v, nil
 }

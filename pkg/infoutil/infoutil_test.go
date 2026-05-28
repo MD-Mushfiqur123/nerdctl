@@ -60,10 +60,17 @@ func TestParseBuildctlVersion(t *testing.T) {
 
 func TestParseRootlesskitVersion(t *testing.T) {
 	testCases := map[string]*dockercompat.ComponentVersion{
+		// urfave/cli v3 format: "rootlesskit 3.0.0"
+		"rootlesskit 3.0.0": {
+			Name:    "rootlesskit",
+			Version: "3.0.0",
+		},
+		// urfave/cli v1/v2 format: "rootlesskit version 2.0.0"
 		"rootlesskit version 2.0.0": {
 			Name:    "rootlesskit",
 			Version: "2.0.0",
 		},
+		// urfave/cli v1/v2 with commit: "rootlesskit version 2.0.0 abc1234"
 		"rootlesskit version 2.0.0 abc1234": {
 			Name:    "rootlesskit",
 			Version: "2.0.0",
