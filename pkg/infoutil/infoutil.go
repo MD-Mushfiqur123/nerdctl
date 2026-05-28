@@ -115,7 +115,7 @@ func GetSnapshotterNames(ctx context.Context, introService introspection.Service
 }
 
 func ClientVersion() dockercompat.ClientVersion {
-	return dockercompat.ClientVersion{
+	v := dockercompat.ClientVersion{
 		Version:   version.GetVersion(),
 		GitCommit: version.GetRevision(),
 		GoVersion: runtime.Version(),
@@ -123,9 +123,12 @@ func ClientVersion() dockercompat.ClientVersion {
 		Arch:      runtime.GOARCH,
 		Components: []dockercompat.ComponentVersion{
 			buildctlVersion(),
-			rootlesskitVersion(),
 		},
 	}
+	if rk := rootlesskitVersion(); rk != nil {
+		v.Components = append(v.Components, *rk)
+	}
+	return v
 }
 
 func ServerVersion(ctx context.Context, client *containerd.Client) (*dockercompat.ServerVersion, error) {
@@ -192,21 +195,21 @@ func parseBuildctlVersion(buildctlVersionStdout []byte) (*dockercompat.Component
 	return v, nil
 }
 
-func rootlesskitVersion() dockercompat.ComponentVersion {
+func rootlesskitVersion() *dockercompat.ComponentVersion {
 	if !rootlessutil.IsRootless() {
-		return dockercompat.ComponentVersion{}
+		return nil
 	}
 	stdout, err := exec.Command("rootlesskit", "--version").Output()
 	if err != nil {
 		log.L.WithError(err).Warnf("unable to determine rootlesskit version")
-		return dockercompat.ComponentVersion{Name: "rootlesskit"}
+		return &dockercompat.ComponentVersion{Name: "rootlesskit"}
 	}
 	v, err := parseRootlesskitVersion(stdout)
 	if err != nil {
 		log.L.Warn(err)
-		return dockercompat.ComponentVersion{Name: "rootlesskit"}
+		return &dockercompat.ComponentVersion{Name: "rootlesskit"}
 	}
-	return *v
+	return v
 }
 
 func parseRootlesskitVersion(versionStdout []byte) (*dockercompat.ComponentVersion, error) {
