@@ -199,41 +199,33 @@ func rootlesskitVersion() *dockercompat.ComponentVersion {
 	if !rootlessutil.IsRootless() {
 		return nil
 	}
-	stdout, err := exec.Command("rootlesskit", "--version").Output()
+	rlkClient, err := rootlessutil.NewRootlessKitClient()
 	if err != nil {
 		log.L.WithError(err).Warnf("unable to determine rootlesskit version")
 		return &dockercompat.ComponentVersion{Name: "rootlesskit"}
 	}
-	v, err := parseRootlesskitVersion(stdout)
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	info, err := rlkClient.Info(ctx)
 	if err != nil {
-		log.L.Warn(err)
+		log.L.WithError(err).Warnf("unable to determine rootlesskit version")
 		return &dockercompat.ComponentVersion{Name: "rootlesskit"}
 	}
-	return v
-}
-
-func parseRootlesskitVersion(versionStdout []byte) (*dockercompat.ComponentVersion, error) {
-	fields := strings.Fields(strings.TrimSpace(string(versionStdout)))
-	if len(fields) < 2 || fields[0] != "rootlesskit" {
-		return nil, fmt.Errorf("unable to determine rootlesskit version, got %q", string(versionStdout))
-	}
 	v := &dockercompat.ComponentVersion{
-		Name: fields[0],
+		Name:    "rootlesskit",
+		Version: info.Version,
+		Details: map[string]string{
+			"ApiVersion": info.APIVersion,
+			"StateDir":   info.StateDir,
+		},
 	}
-	// urfave/cli v3: "rootlesskit 3.0.0" (2 fields)
-	// urfave/cli v1/v2: "rootlesskit version 2.0.0" (3 fields)
-	//                    "rootlesskit version 2.0.0 abc1234" (4 fields)
-	if fields[1] == "version" {
-		if len(fields) >= 3 {
-			v.Version = fields[2]
-		}
-		if len(fields) >= 4 {
-			v.Details = map[string]string{"GitCommit": fields[3]}
-		}
-	} else {
-		v.Version = fields[1]
+	if nd := info.NetworkDriver; nd != nil {
+		v.Details["NetworkDriver"] = nd.Driver
 	}
-	return v, nil
+	if pd := info.PortDriver; pd != nil {
+		v.Details["PortDriver"] = pd.Driver
+	}
+	return v
 }
 
 func runcVersion() dockercompat.ComponentVersion {
