@@ -22,6 +22,7 @@ import (
 	"gotest.tools/v3/assert"
 
 	"github.com/containerd/nerdctl/v2/pkg/inspecttypes/dockercompat"
+	"github.com/rootless-containers/rootlesskit/v3/pkg/api"
 )
 
 func TestParseBuildctlVersion(t *testing.T) {
@@ -81,5 +82,65 @@ libseccomp: 2.5.1`: {
 		} else {
 			assert.Assert(t, err != nil)
 		}
+	}
+}
+
+func TestParseRootlesskitVersion(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name string
+		info *api.Info
+		want *dockercompat.ComponentVersion
+	}{
+		{
+			name: "with network and port driver",
+			info: &api.Info{
+				Version:    "2.0.0",
+				APIVersion: "1.1.1",
+				StateDir:   "/run/user/1000/rootlesskit",
+				NetworkDriver: &api.NetworkDriverInfo{
+					Driver: "slirp4netns",
+				},
+				PortDriver: &api.PortDriverInfo{
+					Driver: "builtin",
+				},
+			},
+			want: &dockercompat.ComponentVersion{
+				Name:    "rootlesskit",
+				Version: "2.0.0",
+				Details: map[string]string{
+					"ApiVersion":    "1.1.1",
+					"StateDir":      "/run/user/1000/rootlesskit",
+					"NetworkDriver": "slirp4netns",
+					"PortDriver":    "builtin",
+				},
+			},
+		},
+		{
+			name: "without network and port driver",
+			info: &api.Info{
+				Version:    "1.0.0",
+				APIVersion: "1.0.0",
+				StateDir:   "/tmp/rk",
+			},
+			want: &dockercompat.ComponentVersion{
+				Name:    "rootlesskit",
+				Version: "1.0.0",
+				Details: map[string]string{
+					"ApiVersion": "1.0.0",
+					"StateDir":   "/tmp/rk",
+				},
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		tt := tt
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			got := parseRootlesskitVersion(tt.info)
+			assert.DeepEqual(t, tt.want, got)
+		})
 	}
 }

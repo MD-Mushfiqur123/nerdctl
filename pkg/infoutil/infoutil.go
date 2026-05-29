@@ -37,6 +37,7 @@ import (
 	"github.com/containerd/nerdctl/v2/pkg/inspecttypes/native"
 	"github.com/containerd/nerdctl/v2/pkg/rootlessutil"
 	"github.com/containerd/nerdctl/v2/pkg/version"
+	"github.com/rootless-containers/rootlesskit/v3/pkg/api"
 )
 
 func NativeDaemonInfo(ctx context.Context, client *containerd.Client) (*native.DaemonInfo, error) {
@@ -125,7 +126,7 @@ func ClientVersion() dockercompat.ClientVersion {
 			buildctlVersion(),
 		},
 	}
-	if rk := rootlesskitVersion(); rk != nil {
+	if rk := rootlesskitVersion(context.Background()); rk != nil {
 		v.Components = append(v.Components, *rk)
 	}
 	return v
@@ -195,7 +196,9 @@ func parseBuildctlVersion(buildctlVersionStdout []byte) (*dockercompat.Component
 	return v, nil
 }
 
-func rootlesskitVersion() *dockercompat.ComponentVersion {
+// rootlesskitVersion returns the RootlessKit version info.
+// It returns nil when not running rootless.
+func rootlesskitVersion(ctx context.Context) *dockercompat.ComponentVersion {
 	if !rootlessutil.IsRootless() {
 		return nil
 	}
@@ -204,13 +207,17 @@ func rootlesskitVersion() *dockercompat.ComponentVersion {
 		log.L.WithError(err).Warnf("unable to determine rootlesskit version")
 		return &dockercompat.ComponentVersion{Name: "rootlesskit"}
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
 	info, err := rlkClient.Info(ctx)
 	if err != nil {
 		log.L.WithError(err).Warnf("unable to determine rootlesskit version")
 		return &dockercompat.ComponentVersion{Name: "rootlesskit"}
 	}
+	return parseRootlesskitVersion(info)
+}
+
+func parseRootlesskitVersion(info *api.Info) *dockercompat.ComponentVersion {
 	v := &dockercompat.ComponentVersion{
 		Name:    "rootlesskit",
 		Version: info.Version,
