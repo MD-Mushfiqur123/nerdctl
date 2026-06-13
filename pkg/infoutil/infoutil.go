@@ -35,7 +35,9 @@ import (
 	"github.com/containerd/nerdctl/v2/pkg/buildkitutil"
 	"github.com/containerd/nerdctl/v2/pkg/inspecttypes/dockercompat"
 	"github.com/containerd/nerdctl/v2/pkg/inspecttypes/native"
+	"github.com/containerd/nerdctl/v2/pkg/rootlessutil"
 	"github.com/containerd/nerdctl/v2/pkg/version"
+	"github.com/rootless-containers/rootlesskit/v3/pkg/api"
 )
 
 func NativeDaemonInfo(ctx context.Context, client *containerd.Client) (*native.DaemonInfo, error) {
@@ -113,8 +115,8 @@ func GetSnapshotterNames(ctx context.Context, introService introspection.Service
 	return names, nil
 }
 
-func ClientVersion() dockercompat.ClientVersion {
-	return dockercompat.ClientVersion{
+func ClientVersion(ctx context.Context) dockercompat.ClientVersion {
+	v := dockercompat.ClientVersion{
 		Version:   version.GetVersion(),
 		GitCommit: version.GetRevision(),
 		GoVersion: runtime.Version(),
@@ -124,6 +126,10 @@ func ClientVersion() dockercompat.ClientVersion {
 			buildctlVersion(),
 		},
 	}
+	if rk := rootlesskitVersion(ctx); rk != nil {
+		v.Components = append(v.Components, *rk)
+	}
+	return v
 }
 
 func ServerVersion(ctx context.Context, client *containerd.Client) (*dockercompat.ServerVersion, error) {
@@ -188,6 +194,45 @@ func parseBuildctlVersion(buildctlVersionStdout []byte) (*dockercompat.Component
 		return nil, fmt.Errorf("unable to determine buildctl version, got %q", string(buildctlVersionStdout))
 	}
 	return v, nil
+}
+
+// rootlesskitVersion returns the RootlessKit version info.
+// It returns nil when not running rootless.
+func rootlesskitVersion(ctx context.Context) *dockercompat.ComponentVersion {
+	if !rootlessutil.IsRootless() {
+		return nil
+	}
+	rlkClient, err := rootlessutil.NewRootlessKitClient()
+	if err != nil {
+		log.L.WithError(err).Warnf("unable to determine rootlesskit version")
+		return &dockercompat.ComponentVersion{Name: "rootlesskit"}
+	}
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+	info, err := rlkClient.Info(ctx)
+	if err != nil {
+		log.L.WithError(err).Warnf("unable to determine rootlesskit version")
+		return &dockercompat.ComponentVersion{Name: "rootlesskit"}
+	}
+	return parseRootlesskitVersion(info)
+}
+
+func parseRootlesskitVersion(info *api.Info) *dockercompat.ComponentVersion {
+	v := &dockercompat.ComponentVersion{
+		Name:    "rootlesskit",
+		Version: info.Version,
+		Details: map[string]string{
+			"ApiVersion": info.APIVersion,
+			"StateDir":   info.StateDir,
+		},
+	}
+	if nd := info.NetworkDriver; nd != nil {
+		v.Details["NetworkDriver"] = nd.Driver
+	}
+	if pd := info.PortDriver; pd != nil {
+		v.Details["PortDriver"] = pd.Driver
+	}
+	return v
 }
 
 func runcVersion() dockercompat.ComponentVersion {

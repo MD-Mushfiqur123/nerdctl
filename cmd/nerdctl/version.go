@@ -120,7 +120,7 @@ func versionAction(cmd *cobra.Command, args []string) error {
 // Address can be empty to skip inspecting the server.
 func versionInfo(cmd *cobra.Command, ns, address string) (dockercompat.VersionInfo, error) {
 	v := dockercompat.VersionInfo{
-		Client: infoutil.ClientVersion(),
+		Client: infoutil.ClientVersion(cmd.Context()),
 	}
 	if address == "" {
 		return v, nil
