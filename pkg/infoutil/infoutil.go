@@ -25,19 +25,19 @@ import (
 	"strings"
 	"time"
 
+	"github.com/containerd/log"
 	"github.com/moby/moby/v2/pkg/sysinfo"
+	"github.com/rootless-containers/rootlesskit/v3/pkg/api"
 
 	containerd "github.com/containerd/containerd/v2/client"
 	"github.com/containerd/containerd/v2/core/introspection"
 	ptypes "github.com/containerd/containerd/v2/pkg/protobuf/types"
-	"github.com/containerd/log"
 
 	"github.com/containerd/nerdctl/v2/pkg/buildkitutil"
 	"github.com/containerd/nerdctl/v2/pkg/inspecttypes/dockercompat"
 	"github.com/containerd/nerdctl/v2/pkg/inspecttypes/native"
 	"github.com/containerd/nerdctl/v2/pkg/rootlessutil"
 	"github.com/containerd/nerdctl/v2/pkg/version"
-	"github.com/rootless-containers/rootlesskit/v3/pkg/api"
 )
 
 func NativeDaemonInfo(ctx context.Context, client *containerd.Client) (*native.DaemonInfo, error) {
