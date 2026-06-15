@@ -20,7 +20,6 @@ import (
 	"testing"
 
 	"gotest.tools/v3/assert"
-
 	"github.com/rootless-containers/rootlesskit/v3/pkg/api"
 
 	"github.com/containerd/nerdctl/v2/pkg/inspecttypes/dockercompat"
