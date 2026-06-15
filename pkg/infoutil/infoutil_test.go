@@ -19,8 +19,8 @@ package infoutil
 import (
 	"testing"
 
-	"gotest.tools/v3/assert"
 	"github.com/rootless-containers/rootlesskit/v3/pkg/api"
+	"gotest.tools/v3/assert"
 
 	"github.com/containerd/nerdctl/v2/pkg/inspecttypes/dockercompat"
 )
