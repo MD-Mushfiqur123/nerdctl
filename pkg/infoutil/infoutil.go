@@ -25,10 +25,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/containerd/log"
 	"github.com/moby/moby/v2/pkg/sysinfo"
 	"github.com/rootless-containers/rootlesskit/v3/pkg/api"
 
+	"github.com/containerd/log"
 	containerd "github.com/containerd/containerd/v2/client"
 	"github.com/containerd/containerd/v2/core/introspection"
 	ptypes "github.com/containerd/containerd/v2/pkg/protobuf/types"
